@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import logo from '../assets/logo.svg'
+import { useAuth } from '../lib/use-auth'
 
 interface MenuItem {
   path: string
@@ -18,13 +19,15 @@ const MENU_ITEMS: MenuItem[] = [
 ]
 
 function Sidebar() {
+  const { user, logout } = useAuth()
+
   return (
-    <aside className="w-60 shrink-0 border-r border-gray-200 bg-white">
+    <aside className="flex w-60 shrink-0 flex-col border-r border-gray-200 bg-white">
       <div className="flex items-center gap-2 px-6 py-5">
         <img src={logo} alt="" className="h-8 w-8" />
         <h1 className="text-card-title text-gray-900">학생 관리 시스템</h1>
       </div>
-      <nav className="flex flex-col gap-1 px-3">
+      <nav className="flex flex-1 flex-col gap-1 px-3">
         {MENU_ITEMS.map((item) => (
           <NavLink
             key={item.path}
@@ -41,6 +44,19 @@ function Sidebar() {
           </NavLink>
         ))}
       </nav>
+      {user && (
+        <div className="border-t border-gray-200 px-6 py-4">
+          <p className="text-body-small text-gray-700">{user.name}</p>
+          <p className="text-caption text-gray-400">{user.role}</p>
+          <button
+            type="button"
+            onClick={logout}
+            className="mt-2 text-body-small text-gray-500 hover:text-gray-900"
+          >
+            로그아웃
+          </button>
+        </div>
+      )}
     </aside>
   )
 }

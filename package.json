@@ -10,10 +10,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@fullcalendar/react": "^7.1.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.3",
-    "recharts": "^3.10.1"
+    "recharts": "^3.10.1",
+    "temporal-polyfill": "^1.0.5"
   },
   "devDependencies": {
     "@babel/core": "^7.29.7",
