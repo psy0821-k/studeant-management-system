@@ -1,0 +1,85 @@
+@import "tailwindcss";
+
+@theme {
+  /* Primary (브랜드 인디고) */
+  --color-primary-50: #f4f5fa;
+  --color-primary-100: #eaeaf6;
+  --color-primary-200: #d0d2eb;
+  --color-primary-300: #b0b3de;
+  --color-primary-400: #858acb;
+  --color-primary-500: #5e64bb;
+  --color-primary-600: #343875;
+  --color-primary-700: #282c5f;
+  --color-primary-800: #1e2147;
+  --color-primary-900: #151732;
+  --color-primary-950: #0e0f21;
+
+  /* Gray */
+  --color-gray-50: #f9fafb;
+  --color-gray-100: #f3f4f6;
+  --color-gray-200: #e5e7eb;
+  --color-gray-300: #d1d5db;
+  --color-gray-400: #9ca3af;
+  --color-gray-500: #6b7280;
+  --color-gray-600: #4b5563;
+  --color-gray-700: #374151;
+  --color-gray-800: #1f2937;
+  --color-gray-900: #111827;
+
+  /* Success */
+  --color-success-50: #f0fdf4;
+  --color-success-500: #22c55e;
+  --color-success-700: #15803d;
+
+  /* Warning */
+  --color-warning-50: #fffbeb;
+  --color-warning-500: #f59e0b;
+  --color-warning-700: #b45309;
+
+  /* Error */
+  --color-error-50: #fef2f2;
+  --color-error-500: #ef4444;
+  --color-error-700: #b91c1c;
+
+  /* Info */
+  --color-info-50: #eff6ff;
+  --color-info-500: #3b82f6;
+  --color-info-700: #1d4ed8;
+
+  /* Typography tokens */
+  --text-display: 30px;
+  --text-display--line-height: 42px;
+  --text-display--font-weight: 700;
+
+  --text-page-title: 24px;
+  --text-page-title--line-height: 34px;
+  --text-page-title--font-weight: 600;
+
+  --text-section-title: 19px;
+  --text-section-title--line-height: 28px;
+  --text-section-title--font-weight: 600;
+
+  --text-card-title: 16px;
+  --text-card-title--line-height: 24px;
+  --text-card-title--font-weight: 600;
+
+  --text-body: 15px;
+  --text-body--line-height: 24px;
+  --text-body--font-weight: 400;
+
+  --text-body-medium: 15px;
+  --text-body-medium--line-height: 24px;
+  --text-body-medium--font-weight: 500;
+
+  --text-body-small: 13px;
+  --text-body-small--line-height: 21px;
+  --text-body-small--font-weight: 400;
+
+  --text-caption: 12px;
+  --text-caption--line-height: 18px;
+  --text-caption--font-weight: 400;
+}
+
+body {
+  margin: 0;
+}

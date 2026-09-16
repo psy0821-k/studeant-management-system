@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 235" fill="none">
+  <defs>
+    <linearGradient id="ajhGradient" x1="20" y1="20" x2="180" y2="215" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#61b7ce"/>
+      <stop offset="100%" stop-color="#343875"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 둥근 사각형 테두리 -->
+  <rect x="12" y="12" width="176" height="176" rx="22" stroke="url(#ajhGradient)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- H 오른쪽 세로선 -->
+  <line x1="150" y1="55" x2="150" y2="148" stroke="url(#ajhGradient)" stroke-width="7" stroke-linecap="round"/>
+
+  <!-- A/H 가로바 -->
+  <line x1="72" y1="108" x2="150" y2="108" stroke="url(#ajhGradient)" stroke-width="7" stroke-linecap="round"/>
+
+  <!-- A의 대각선(왼쪽 세로선 겸용) + J의 수직선, 하나의 연속 스트로크 -->
+  <path d="M 28 198 L 108 40 L 108 148" stroke="url(#ajhGradient)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- J 아래 고리 -->
+  <path d="M 60 172 A 36 36 0 1 0 108 148" stroke="url(#ajhGradient)" stroke-width="7" stroke-linecap="round"/>
+</svg>
