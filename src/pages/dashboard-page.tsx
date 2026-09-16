@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Badge from '../components/ui/badge'
 import Card from '../components/ui/card'
+import FlipDigits from '../components/flip-digits'
 import { MOCK_STUDENT_NOTES } from '../mocks/student-notes'
 import { useClock } from '../lib/use-clock'
 import type { StudentNoteType } from '../types/student-note'
@@ -70,11 +71,11 @@ function DashboardPage() {
           <Card className="relative flex divide-x divide-gray-200 p-0">
             <span className="absolute right-3 top-2 text-caption text-gray-400">{weekday}</span>
             <div className="flex flex-1 flex-col items-center justify-center py-6">
-              <span className="text-display text-gray-900">{hours}</span>
+              <FlipDigits value={hours} className="text-display text-gray-900" />
               <span className="mt-1 text-caption text-gray-400">시</span>
             </div>
             <div className="flex flex-1 flex-col items-center justify-center py-6">
-              <span className="text-display text-gray-900">{minutes}</span>
+              <FlipDigits value={minutes} className="text-display text-gray-900" />
               <span className="mt-1 text-caption text-gray-400">분</span>
             </div>
           </Card>

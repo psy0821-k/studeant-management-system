@@ -78,8 +78,27 @@
   --text-caption: 12px;
   --text-caption--line-height: 18px;
   --text-caption--font-weight: 400;
+
+  --animate-flip-in: flip-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes flip-in {
+  from {
+    transform: translateY(-60%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 body {
   margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-flip-in {
+    animation: none;
+  }
 }
