@@ -6,7 +6,7 @@
 
 2주 뒤 목표는 실사용 투입이 아니라 **핵심 흐름이 동작하는 데모 시연**. 아래 순서로 압축 진행하며, 완료된 하위 Phase 항목과 연동된다.
 
-- [x] 1~3일차: 로그인 (Google OAuth + 테스트용 아이디/비밀번호, `google_credentials` 연동 포함) — Phase 0 연장
+- [x] 1~3일차: 로그인 (Google OAuth + 테스트용 아이디/비밀번호) — Phase 0 연장. `google_credentials` 연동(테스트 계정에 Google 계정 추가 연결)은 Calendar 연동 작업(8~10일차) 때 함께 구현 예정
 - [ ] 4~7일차: 학생 CRUD (Phase 1)
 - [ ] 8~10일차: 반 관리 + FullCalendar UI + Google Calendar 단방향 동기화 (Phase 3)
 - [ ] 11~13일차: 성적/숙제 관리 (Phase 5 일부)
@@ -19,7 +19,7 @@
 - [x] 백엔드 프로젝트 셋업 (Node.js + Express)
 - [x] PostgreSQL 스키마 설계 (users, google_credentials, classes, students, grades, homework/homework_submissions)
 - [x] 프론트-백엔드 연동 구조 확정 (Vite proxy, API 클라이언트, 환경변수)
-- [ ] 로그인 구현 (Google OAuth + 테스트용 아이디/비밀번호)
+- [x] 로그인 구현 (Google OAuth + 테스트용 아이디/비밀번호)
 
 ## Phase 1. 학생 관리 (핵심 기능)
 
