@@ -2,6 +2,7 @@ import { useState } from 'react'
 import Badge from '../components/ui/badge'
 import Card from '../components/ui/card'
 import { MOCK_STUDENT_NOTES } from '../mocks/student-notes'
+import { useClock } from '../lib/use-clock'
 import type { StudentNoteType } from '../types/student-note'
 
 const NOTE_BADGE_TONE: Record<StudentNoteType, 'info' | 'warning'> = {
@@ -18,6 +19,7 @@ function formatDate(date: Date) {
 
 function DashboardPage() {
   const [currentDate, setCurrentDate] = useState(new Date())
+  const now = useClock()
 
   const moveDate = (days: number) => {
     setCurrentDate((prev) => {
@@ -27,8 +29,9 @@ function DashboardPage() {
     })
   }
 
-  const day = currentDate.getDate()
-  const weekday = currentDate.toLocaleDateString('ko-KR', { weekday: 'short' })
+  const hours = String(now.getHours()).padStart(2, '0')
+  const minutes = String(now.getMinutes()).padStart(2, '0')
+  const weekday = now.toLocaleDateString('ko-KR', { weekday: 'short' })
 
   const todayNotes = MOCK_STUDENT_NOTES.filter((note) => !note.resolved)
   const deliveryNotes = todayNotes.filter((note) => note.type === '전달사항')
@@ -64,13 +67,15 @@ function DashboardPage() {
         </Card>
 
         <div className="flex flex-col gap-4">
-          <Card className="flex divide-x divide-gray-200 p-0">
+          <Card className="relative flex divide-x divide-gray-200 p-0">
+            <span className="absolute right-3 top-2 text-caption text-gray-400">{weekday}</span>
             <div className="flex flex-1 flex-col items-center justify-center py-6">
-              <span className="text-display text-gray-900">{day}</span>
+              <span className="text-display text-gray-900">{hours}</span>
+              <span className="mt-1 text-caption text-gray-400">시</span>
             </div>
             <div className="flex flex-1 flex-col items-center justify-center py-6">
-              <span className="text-display text-gray-900">{day}</span>
-              <span className="mt-1 text-caption text-gray-400">{weekday}</span>
+              <span className="text-display text-gray-900">{minutes}</span>
+              <span className="mt-1 text-caption text-gray-400">분</span>
             </div>
           </Card>
 
