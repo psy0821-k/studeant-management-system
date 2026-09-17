@@ -31,6 +31,7 @@ import { MOCK_COUNSELING } from '../mocks/counseling'
 import { MOCK_TEXTBOOKS } from '../mocks/textbooks'
 import { studentInputSchema } from '../types/student'
 import type { Student, StudentInput, StudentStatus } from '../types/student'
+import type { SchoolClass } from '../types/class'
 import type { AttendanceStatus } from '../types/attendance'
 import type { HomeworkStatus } from '../types/grade'
 import type { PaymentStatus } from '../types/payment'
@@ -64,6 +65,7 @@ function StudentDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [student, setStudent] = useState<Student | null>(null)
+  const [classes, setClasses] = useState<SchoolClass[]>([])
   const [isLoading, setIsLoading] = useState(() => Boolean(id))
   const [loadError, setLoadError] = useState<string | null>(null)
   const [isEditing, setIsEditing] = useState(false)
@@ -82,6 +84,10 @@ function StudentDetailPage() {
       .finally(() => setIsLoading(false))
   }, [id])
 
+  useEffect(() => {
+    apiClient.get<SchoolClass[]>('/classes').then(setClasses).catch(() => {})
+  }, [])
+
   function startEdit() {
     if (!student) return
     setForm({
@@ -89,6 +95,7 @@ function StudentDetailPage() {
       grade: student.grade,
       gender: student.gender,
       school: student.school ?? '',
+      classId: student.classId,
       phone: student.phone,
       parentPhone: student.parentPhone,
       status: student.status,
@@ -201,6 +208,18 @@ function StudentDetailPage() {
                 value={form.school}
                 onChange={(e) => setForm({ ...form, school: e.target.value })}
               />
+              <select
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                value={form.classId ?? ''}
+                onChange={(e) => setForm({ ...form, classId: e.target.value || null })}
+              >
+                <option value="">미배정</option>
+                {classes.map((schoolClass) => (
+                  <option key={schoolClass.id} value={schoolClass.id}>
+                    {schoolClass.name}
+                  </option>
+                ))}
+              </select>
               <Input
                 placeholder="연락처"
                 value={form.phone}

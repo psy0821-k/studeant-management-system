@@ -16,6 +16,7 @@ import {
 import { apiClient, ApiError } from '../lib/api-client'
 import { studentInputSchema } from '../types/student'
 import type { Student, StudentInput, StudentStatus } from '../types/student'
+import type { SchoolClass } from '../types/class'
 
 const STATUS_BADGE_TONE: Record<StudentStatus, 'success' | 'warning' | 'gray'> = {
   재원: 'success',
@@ -30,6 +31,7 @@ const EMPTY_FORM: StudentInput = {
   grade: '',
   gender: '남',
   school: '',
+  classId: null,
   phone: '',
   parentPhone: '',
   status: '재원',
@@ -39,6 +41,7 @@ const EMPTY_FORM: StudentInput = {
 function StudentsPage() {
   const navigate = useNavigate()
   const [students, setStudents] = useState<Student[]>([])
+  const [classes, setClasses] = useState<SchoolClass[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [keyword, setKeyword] = useState('')
@@ -67,6 +70,10 @@ function StudentsPage() {
     }, 250)
     return () => clearTimeout(timer)
   }, [keyword])
+
+  useEffect(() => {
+    apiClient.get<SchoolClass[]>('/classes').then(setClasses).catch(() => {})
+  }, [])
 
   function openCreateForm() {
     setForm(EMPTY_FORM)
@@ -141,6 +148,18 @@ function StudentsPage() {
               value={form.school}
               onChange={(e) => setForm({ ...form, school: e.target.value })}
             />
+            <select
+              className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              value={form.classId ?? ''}
+              onChange={(e) => setForm({ ...form, classId: e.target.value || null })}
+            >
+              <option value="">미배정</option>
+              {classes.map((schoolClass) => (
+                <option key={schoolClass.id} value={schoolClass.id}>
+                  {schoolClass.name}
+                </option>
+              ))}
+            </select>
             <Input
               placeholder="연락처"
               value={form.phone}

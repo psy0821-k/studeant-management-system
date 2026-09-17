@@ -24,6 +24,7 @@ export const studentInputSchema = z.object({
   grade: z.string().trim().min(1, '학년을 입력해주세요.'),
   gender: z.enum(['남', '여']),
   school: z.string().trim(),
+  classId: z.string().nullable(),
   phone: z
     .string()
     .trim()

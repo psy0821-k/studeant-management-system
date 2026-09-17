@@ -47,6 +47,7 @@ interface StudentPayload {
   grade?: string
   gender?: string
   school?: string
+  classId?: string | null
   phone?: string
   parentPhone?: string
   status?: string
@@ -97,13 +98,24 @@ router.post('/', async (req, res) => {
     return
   }
 
-  const { name, grade, gender, school, phone, parentPhone, status, enrolledAt } = body
+  const { name, grade, gender, school, classId, phone, parentPhone, status, enrolledAt } = body
 
   const created = await pool.query<{ id: string }>(
-    `INSERT INTO students (name, grade, gender, school, phone, parent_phone, status, enrolled_at, created_by)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    `INSERT INTO students (name, grade, gender, school, class_id, phone, parent_phone, status, enrolled_at, created_by)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
      RETURNING id`,
-    [name, grade, gender, school ?? null, phone ?? null, parentPhone ?? null, status, enrolledAt, req.user!.id],
+    [
+      name,
+      grade,
+      gender,
+      school ?? null,
+      classId ?? null,
+      phone ?? null,
+      parentPhone ?? null,
+      status,
+      enrolledAt,
+      req.user!.id,
+    ],
   )
 
   const result = await pool.query<StudentRow>(`${SELECT_STUDENT} WHERE s.id = $1`, [created.rows[0].id])
@@ -118,14 +130,26 @@ router.put('/:id', async (req, res) => {
     return
   }
 
-  const { name, grade, gender, school, phone, parentPhone, status, enrolledAt } = body
+  const { name, grade, gender, school, classId, phone, parentPhone, status, enrolledAt } = body
 
   const updated = await pool.query<{ id: string }>(
     `UPDATE students
-     SET name = $1, grade = $2, gender = $3, school = $4, phone = $5, parent_phone = $6, status = $7, enrolled_at = $8
-     WHERE id = $9
+     SET name = $1, grade = $2, gender = $3, school = $4, class_id = $5, phone = $6, parent_phone = $7,
+         status = $8, enrolled_at = $9
+     WHERE id = $10
      RETURNING id`,
-    [name, grade, gender, school ?? null, phone ?? null, parentPhone ?? null, status, enrolledAt, req.params.id],
+    [
+      name,
+      grade,
+      gender,
+      school ?? null,
+      classId ?? null,
+      phone ?? null,
+      parentPhone ?? null,
+      status,
+      enrolledAt,
+      req.params.id,
+    ],
   )
 
   if (updated.rows.length === 0) {

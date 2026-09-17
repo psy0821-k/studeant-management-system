@@ -3,6 +3,7 @@ import cors from 'cors'
 import express from 'express'
 import { pool } from './db.js'
 import authRouter from './routes/auth.js'
+import classesRouter from './routes/classes.js'
 import studentsRouter from './routes/students.js'
 
 const app = express()
@@ -16,6 +17,7 @@ app.get('/api/health', async (_req, res) => {
 })
 
 app.use('/api/auth', authRouter)
+app.use('/api/classes', classesRouter)
 app.use('/api/students', studentsRouter)
 
 const port = Number(process.env.PORT) || 4000
