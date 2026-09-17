@@ -29,6 +29,7 @@ import { MOCK_HOMEWORK } from '../mocks/grades'
 import { MOCK_PAYMENTS } from '../mocks/payments'
 import { MOCK_COUNSELING } from '../mocks/counseling'
 import { MOCK_TEXTBOOKS } from '../mocks/textbooks'
+import { studentInputSchema } from '../types/student'
 import type { Student, StudentInput, StudentStatus } from '../types/student'
 import type { AttendanceStatus } from '../types/attendance'
 import type { HomeworkStatus } from '../types/grade'
@@ -101,9 +102,14 @@ function StudentDetailPage() {
     e.preventDefault()
     if (!form || !id) return
     setFormError(null)
+    const result = studentInputSchema.safeParse(form)
+    if (!result.success) {
+      setFormError(result.error.issues[0].message)
+      return
+    }
     setIsSubmitting(true)
     try {
-      const updated = await apiClient.put<Student>(`/students/${id}`, form)
+      const updated = await apiClient.put<Student>(`/students/${id}`, result.data)
       setStudent(updated)
       setIsEditing(false)
     } catch (err) {

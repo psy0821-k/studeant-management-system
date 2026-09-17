@@ -14,6 +14,7 @@ import {
   TableRow,
 } from '../components/ui/table'
 import { apiClient, ApiError } from '../lib/api-client'
+import { studentInputSchema } from '../types/student'
 import type { Student, StudentInput, StudentStatus } from '../types/student'
 
 const STATUS_BADGE_TONE: Record<StudentStatus, 'success' | 'warning' | 'gray'> = {
@@ -76,9 +77,14 @@ function StudentsPage() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setFormError(null)
+    const result = studentInputSchema.safeParse(form)
+    if (!result.success) {
+      setFormError(result.error.issues[0].message)
+      return
+    }
     setIsSubmitting(true)
     try {
-      await apiClient.post<Student>('/students', form)
+      await apiClient.post<Student>('/students', result.data)
       setIsFormOpen(false)
       await loadStudents(keyword)
     } catch (err) {
