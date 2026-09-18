@@ -1,16 +1,43 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
+import FullCalendar from '@fullcalendar/react'
+import type { EventInput } from '@fullcalendar/core'
+import timeGridPlugin from '@fullcalendar/timegrid'
+import interactionPlugin from '@fullcalendar/interaction'
+import Badge from '../components/ui/badge'
 import Button from '../components/ui/button'
 import Card from '../components/ui/card'
 import Input from '../components/ui/input'
 import { apiClient, ApiError } from '../lib/api-client'
-import { classInputSchema } from '../types/class'
-import type { ClassInput, SchoolClass } from '../types/class'
+import { classInputSchema, DAY_OF_WEEK_LABELS } from '../types/class'
+import type { ClassInput, ScheduleInput, SchoolClass } from '../types/class'
 
 const EMPTY_FORM: ClassInput = {
   name: '',
   subject: '',
-  schedule: '',
+  schedules: [],
+}
+
+const CLASS_COLORS = ['#5e64bb', '#22c55e', '#f59e0b', '#3b82f6', '#ef4444', '#0e9f6e']
+
+function classColor(classId: string) {
+  let hash = 0
+  for (const char of classId) hash = (hash * 31 + char.charCodeAt(0)) >>> 0
+  return CLASS_COLORS[hash % CLASS_COLORS.length]
+}
+
+function toCalendarEvents(classes: SchoolClass[]): EventInput[] {
+  return classes.flatMap((schoolClass) =>
+    schoolClass.schedules.map((schedule) => ({
+      id: schedule.id,
+      title: schoolClass.name,
+      daysOfWeek: [schedule.dayOfWeek],
+      startTime: schedule.startTime,
+      endTime: schedule.endTime,
+      startRecur: '2000-01-01',
+      color: classColor(schoolClass.id),
+    })),
+  )
 }
 
 function ClassesPage() {
@@ -22,6 +49,10 @@ function ClassesPage() {
   const [form, setForm] = useState<ClassInput>(EMPTY_FORM)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+  const [isGoogleCalendarConnected, setIsGoogleCalendarConnected] = useState(false)
+  const [googleCalendarMessage, setGoogleCalendarMessage] = useState<string | null>(null)
+
+  const calendarEvents = useMemo(() => toCalendarEvents(classes), [classes])
 
   async function loadClasses() {
     setIsLoading(true)
@@ -36,9 +67,40 @@ function ClassesPage() {
     }
   }
 
+  async function loadGoogleCalendarStatus() {
+    try {
+      const data = await apiClient.get<{ connected: boolean }>('/auth/google-calendar/status')
+      setIsGoogleCalendarConnected(data.connected)
+    } catch {
+      setIsGoogleCalendarConnected(false)
+    }
+  }
+
   useEffect(() => {
     loadClasses()
+    loadGoogleCalendarStatus()
+
+    const params = new URLSearchParams(window.location.search)
+    const googleCalendarResult = params.get('googleCalendar')
+    if (googleCalendarResult === 'connected') {
+      setGoogleCalendarMessage('Google Calendar 연동이 완료되었습니다.')
+      loadGoogleCalendarStatus()
+    } else if (googleCalendarResult === 'error') {
+      setGoogleCalendarMessage('Google Calendar 연동에 실패했습니다. 다시 시도해주세요.')
+    }
+    if (googleCalendarResult) {
+      window.history.replaceState({}, '', window.location.pathname)
+    }
   }, [])
+
+  async function handleConnectGoogleCalendar() {
+    try {
+      const data = await apiClient.get<{ url: string }>('/auth/google-calendar/connect')
+      window.location.href = data.url
+    } catch (err) {
+      alert(err instanceof ApiError ? err.message : 'Google Calendar 연동을 시작하지 못했습니다.')
+    }
+  }
 
   function openCreateForm() {
     setEditingId(null)
@@ -49,9 +111,40 @@ function ClassesPage() {
 
   function openEditForm(schoolClass: SchoolClass) {
     setEditingId(schoolClass.id)
-    setForm({ name: schoolClass.name, subject: schoolClass.subject, schedule: schoolClass.schedule })
+    setForm({
+      name: schoolClass.name,
+      subject: schoolClass.subject,
+      schedules: schoolClass.schedules.map((schedule) => ({
+        dayOfWeek: schedule.dayOfWeek,
+        startTime: schedule.startTime,
+        endTime: schedule.endTime,
+      })),
+    })
     setFormError(null)
     setIsFormOpen(true)
+  }
+
+  function toggleDay(dayOfWeek: number) {
+    const exists = form.schedules.some((schedule) => schedule.dayOfWeek === dayOfWeek)
+    if (exists) {
+      setForm({ ...form, schedules: form.schedules.filter((schedule) => schedule.dayOfWeek !== dayOfWeek) })
+    } else {
+      setForm({
+        ...form,
+        schedules: [...form.schedules, { dayOfWeek, startTime: '16:00', endTime: '18:00' }].sort(
+          (a, b) => a.dayOfWeek - b.dayOfWeek,
+        ),
+      })
+    }
+  }
+
+  function updateScheduleTime(dayOfWeek: number, field: 'startTime' | 'endTime', value: string) {
+    setForm({
+      ...form,
+      schedules: form.schedules.map((schedule) =>
+        schedule.dayOfWeek === dayOfWeek ? { ...schedule, [field]: value } : schedule,
+      ),
+    })
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -88,6 +181,10 @@ function ClassesPage() {
     }
   }
 
+  function scheduleFor(dayOfWeek: number): ScheduleInput | undefined {
+    return form.schedules.find((schedule) => schedule.dayOfWeek === dayOfWeek)
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between">
@@ -97,37 +194,81 @@ function ClassesPage() {
             총 {classes.length}개 반을 운영하고 있습니다.
           </p>
         </div>
-        <Button variant="primary" onClick={openCreateForm}>
-          반 생성
-        </Button>
+        <div className="flex items-center gap-2">
+          {isGoogleCalendarConnected ? (
+            <Badge tone="success">Google Calendar 연동됨</Badge>
+          ) : (
+            <Button variant="secondary" size="sm" onClick={handleConnectGoogleCalendar}>
+              Google Calendar 연동
+            </Button>
+          )}
+          <Button variant="primary" onClick={openCreateForm}>
+            반 생성
+          </Button>
+        </div>
       </div>
+
+      {googleCalendarMessage && (
+        <p className="mt-3 text-body-small text-gray-600">{googleCalendarMessage}</p>
+      )}
 
       {isFormOpen && (
         <Card className="mt-6 p-5">
           <h3 className="text-card-title text-gray-900">{editingId ? '반 정보 수정' : '새 반 생성'}</h3>
-          <form className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2" onSubmit={handleSubmit}>
-            <Input
-              placeholder="반 이름 (예: 수학 심화반)"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              required
-            />
-            <Input
-              placeholder="과목"
-              value={form.subject}
-              onChange={(e) => setForm({ ...form, subject: e.target.value })}
-              required
-            />
-            <Input
-              placeholder="일정 (예: 월·수·금 16:00-18:00)"
-              value={form.schedule}
-              onChange={(e) => setForm({ ...form, schedule: e.target.value })}
-              className="sm:col-span-2"
-            />
-            {formError && (
-              <p className="sm:col-span-2 text-body-small text-error-500">{formError}</p>
-            )}
-            <div className="flex gap-2 sm:col-span-2">
+          <form className="mt-4 space-y-4" onSubmit={handleSubmit}>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <Input
+                placeholder="반 이름 (예: 수학 심화반)"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                required
+              />
+              <Input
+                placeholder="과목"
+                value={form.subject}
+                onChange={(e) => setForm({ ...form, subject: e.target.value })}
+                required
+              />
+            </div>
+
+            <div>
+              <p className="text-body-small font-medium text-gray-700">수업 요일 및 시간</p>
+              <div className="mt-2 space-y-2">
+                {DAY_OF_WEEK_LABELS.map((label, dayOfWeek) => {
+                  const schedule = scheduleFor(dayOfWeek)
+                  return (
+                    <div key={dayOfWeek} className="flex items-center gap-3">
+                      <label className="flex w-14 items-center gap-1.5 text-body-small text-gray-700">
+                        <input
+                          type="checkbox"
+                          checked={!!schedule}
+                          onChange={() => toggleDay(dayOfWeek)}
+                        />
+                        {label}
+                      </label>
+                      {schedule && (
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="time"
+                            value={schedule.startTime}
+                            onChange={(e) => updateScheduleTime(dayOfWeek, 'startTime', e.target.value)}
+                          />
+                          <span className="text-gray-400">~</span>
+                          <Input
+                            type="time"
+                            value={schedule.endTime}
+                            onChange={(e) => updateScheduleTime(dayOfWeek, 'endTime', e.target.value)}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {formError && <p className="text-body-small text-error-500">{formError}</p>}
+            <div className="flex gap-2">
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting ? '저장 중...' : '저장'}
               </Button>
@@ -166,7 +307,13 @@ function ClassesPage() {
               </div>
               <div className="flex justify-between">
                 <dt className="text-gray-400">일정</dt>
-                <dd>{schoolClass.schedule || '미입력'}</dd>
+                <dd className="text-right">
+                  {schoolClass.schedules.length === 0
+                    ? '미입력'
+                    : schoolClass.schedules
+                        .map((s) => `${DAY_OF_WEEK_LABELS[s.dayOfWeek]} ${s.startTime}-${s.endTime}`)
+                        .join(', ')}
+                </dd>
               </div>
               <div className="flex justify-between">
                 <dt className="text-gray-400">학생 수</dt>
@@ -179,6 +326,25 @@ function ClassesPage() {
           <p className="text-body-small text-gray-400">등록된 반이 없습니다.</p>
         )}
       </div>
+
+      {!isLoading && !error && classes.length > 0 && (
+        <Card className="mt-6 p-5">
+          <h3 className="text-card-title text-gray-900">주간 시간표</h3>
+          <div className="mt-4">
+            <FullCalendar
+              plugins={[timeGridPlugin, interactionPlugin]}
+              initialView="timeGridWeek"
+              headerToolbar={false}
+              allDaySlot={false}
+              locale="ko"
+              height="auto"
+              slotMinTime="08:00:00"
+              slotMaxTime="23:00:00"
+              events={calendarEvents}
+            />
+          </div>
+        </Card>
+      )}
     </div>
   )
 }

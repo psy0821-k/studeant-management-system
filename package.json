@@ -10,7 +10,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@fullcalendar/react": "^7.1.0",
+    "@fullcalendar/core": "^7.0.0-rc.0",
+    "@fullcalendar/daygrid": "^7.0.0-rc.0",
+    "@fullcalendar/interaction": "^7.0.0-rc.0",
+    "@fullcalendar/react": "^7.0.0-rc.0",
+    "@fullcalendar/timegrid": "^7.0.0-rc.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.3",
