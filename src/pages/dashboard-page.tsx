@@ -1,9 +1,13 @@
 import { useState } from 'react'
+import FullCalendar from '@fullcalendar/react'
+import type { EventInput } from '@fullcalendar/core'
+import dayGridPlugin from '@fullcalendar/daygrid'
 import Badge from '../components/ui/badge'
 import Card from '../components/ui/card'
 import FlipDigits from '../components/flip-digits'
 import { MOCK_STUDENT_NOTES } from '../mocks/student-notes'
 import { useClock } from '../lib/use-clock'
+import { apiClient, ApiError } from '../lib/api-client'
 import type { StudentNoteType } from '../types/student-note'
 
 const NOTE_BADGE_TONE: Record<StudentNoteType, 'info' | 'warning'> = {
@@ -20,7 +24,20 @@ function formatDate(date: Date) {
 
 function DashboardPage() {
   const [currentDate, setCurrentDate] = useState(new Date())
+  const [calendarEvents, setCalendarEvents] = useState<EventInput[]>([])
+  const [calendarError, setCalendarError] = useState<string | null>(null)
   const now = useClock()
+
+  async function loadCalendarEvents(start: Date, end: Date) {
+    try {
+      const data = await apiClient.get<EventInput[]>(
+        `/dashboard/calendar-events?start=${start.toISOString()}&end=${end.toISOString()}`,
+      )
+      setCalendarEvents(data)
+    } catch (err) {
+      setCalendarError(err instanceof ApiError ? err.message : '달력 정보를 불러오지 못했습니다.')
+    }
+  }
 
   const moveDate = (days: number) => {
     setCurrentDate((prev) => {
@@ -63,8 +80,26 @@ function DashboardPage() {
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_280px]">
-        <Card className="flex min-h-[380px] items-center justify-center p-5 text-body-small text-gray-400">
-          구글 캘린더 연동 예정 영역
+        <Card className="min-h-[380px] p-5">
+          <div className="mb-3 flex items-center gap-4 text-caption text-gray-500">
+            <span className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-gray-400" />
+              수업 일정 (반별 색상)
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-[#8b5cf6]" />
+              Google Calendar
+            </span>
+          </div>
+          {calendarError && <p className="mb-3 text-body-small text-error-500">{calendarError}</p>}
+          <FullCalendar
+            plugins={[dayGridPlugin]}
+            initialView="dayGridMonth"
+            locale="ko"
+            height="auto"
+            events={calendarEvents}
+            datesSet={(info) => loadCalendarEvents(info.start, info.end)}
+          />
         </Card>
 
         <div className="flex flex-col gap-4">

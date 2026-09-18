@@ -158,3 +158,48 @@ export async function deleteGoogleCalendarEvents(teacherId: string, googleEventI
     }
   }
 }
+
+export interface GoogleCalendarEvent {
+  id: string
+  title: string
+  start: string
+  end: string
+  allDay: boolean
+}
+
+/**
+ * 강사의 기본 캘린더에서 주어진 기간의 이벤트를 읽어온다(시험 일정, 개인 일정 등 앱이 만들지
+ * 않은 이벤트 포함). 대시보드 월간 달력에서 앱의 수업 일정과 함께 보여주기 위한 용도.
+ */
+export async function listGoogleCalendarEvents(
+  teacherId: string,
+  timeMin: string,
+  timeMax: string,
+): Promise<GoogleCalendarEvent[]> {
+  const calendar = await getCalendarClientForUser(teacherId)
+  if (!calendar) return []
+
+  const result = await calendar.events.list({
+    calendarId: 'primary',
+    timeMin,
+    timeMax,
+    singleEvents: true,
+    orderBy: 'startTime',
+  })
+
+  return (result.data.items ?? []).flatMap((event) => {
+    const start = event.start?.dateTime ?? event.start?.date
+    const end = event.end?.dateTime ?? event.end?.date
+    if (!event.id || !event.summary || !start || !end) return []
+
+    return [
+      {
+        id: event.id,
+        title: event.summary,
+        start,
+        end,
+        allDay: !event.start?.dateTime,
+      },
+    ]
+  })
+}
