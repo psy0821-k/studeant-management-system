@@ -66,4 +66,80 @@ router.get('/calendar-events', async (req, res) => {
   res.json([...classEvents, ...googleEventsForCalendar])
 })
 
+interface CalendarNoteRow {
+  id: string
+  note_date: string
+  content: string
+}
+
+function toCalendarNote(row: CalendarNoteRow) {
+  return { id: row.id, date: row.note_date, content: row.content }
+}
+
+/**
+ * 강사가 날짜별로 남기는 자유 텍스트 메모(학교 시험 일정, 학생 특이사항 등).
+ * 수업 일정과 무관하며 학원 전체 공유(강사별 접근 제한 없음).
+ */
+router.get('/notes', async (req, res) => {
+  const { start, end } = req.query as { start?: string; end?: string }
+  if (!start || !end) {
+    res.status(400).json({ error: 'start, end 쿼리 파라미터가 필요합니다.' })
+    return
+  }
+
+  const result = await pool.query<CalendarNoteRow>(
+    'SELECT id, note_date, content FROM calendar_notes WHERE note_date >= $1 AND note_date < $2 ORDER BY created_at',
+    [start, end],
+  )
+  res.json(result.rows.map(toCalendarNote))
+})
+
+router.post('/notes', async (req, res) => {
+  const { date, content } = req.body as { date?: string; content?: string }
+  if (!date || !content?.trim()) {
+    res.status(400).json({ error: '날짜와 내용은 필수입니다.' })
+    return
+  }
+
+  const created = await pool.query<CalendarNoteRow>(
+    `INSERT INTO calendar_notes (note_date, content, created_by)
+     VALUES ($1, $2, $3)
+     RETURNING id, note_date, content`,
+    [date, content.trim(), req.user!.id],
+  )
+  res.status(201).json(toCalendarNote(created.rows[0]))
+})
+
+router.put('/notes/:id', async (req, res) => {
+  const { content } = req.body as { content?: string }
+  if (!content?.trim()) {
+    res.status(400).json({ error: '내용은 필수입니다.' })
+    return
+  }
+
+  const updated = await pool.query<CalendarNoteRow>(
+    `UPDATE calendar_notes SET content = $1 WHERE id = $2
+     RETURNING id, note_date, content`,
+    [content.trim(), req.params.id],
+  )
+
+  if (updated.rows.length === 0) {
+    res.status(404).json({ error: '메모를 찾을 수 없습니다.' })
+    return
+  }
+
+  res.json(toCalendarNote(updated.rows[0]))
+})
+
+router.delete('/notes/:id', async (req, res) => {
+  const deleted = await pool.query('DELETE FROM calendar_notes WHERE id = $1 RETURNING id', [req.params.id])
+
+  if (deleted.rows.length === 0) {
+    res.status(404).json({ error: '메모를 찾을 수 없습니다.' })
+    return
+  }
+
+  res.status(204).end()
+})
+
 export default router

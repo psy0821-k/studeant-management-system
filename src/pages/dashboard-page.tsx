@@ -2,13 +2,16 @@ import { useState } from 'react'
 import FullCalendar from '@fullcalendar/react'
 import type { EventInput } from '@fullcalendar/core'
 import dayGridPlugin from '@fullcalendar/daygrid'
+import interactionPlugin from '@fullcalendar/interaction'
 import Badge from '../components/ui/badge'
 import Card from '../components/ui/card'
 import FlipDigits from '../components/flip-digits'
+import CalendarNoteModal from '../components/calendar-note-modal'
 import { MOCK_STUDENT_NOTES } from '../mocks/student-notes'
 import { useClock } from '../lib/use-clock'
 import { apiClient, ApiError } from '../lib/api-client'
 import type { StudentNoteType } from '../types/student-note'
+import type { CalendarNote } from '../types/calendar-note'
 
 const NOTE_BADGE_TONE: Record<StudentNoteType, 'info' | 'warning'> = {
   전달사항: 'info',
@@ -22,21 +25,52 @@ function formatDate(date: Date) {
   return `${year}.${month}.${day}`
 }
 
+function toDateParam(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 function DashboardPage() {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [calendarEvents, setCalendarEvents] = useState<EventInput[]>([])
   const [calendarError, setCalendarError] = useState<string | null>(null)
+  const [visibleRange, setVisibleRange] = useState<{ start: Date; end: Date } | null>(null)
+  const [selectedNoteDate, setSelectedNoteDate] = useState<Date | null>(null)
   const now = useClock()
 
   async function loadCalendarEvents(start: Date, end: Date) {
+    setVisibleRange({ start, end })
     try {
-      const data = await apiClient.get<EventInput[]>(
-        `/dashboard/calendar-events?start=${start.toISOString()}&end=${end.toISOString()}`,
-      )
-      setCalendarEvents(data)
+      const [scheduleEvents, notes] = await Promise.all([
+        apiClient.get<EventInput[]>(
+          `/dashboard/calendar-events?start=${start.toISOString()}&end=${end.toISOString()}`,
+        ),
+        apiClient.get<CalendarNote[]>(
+          `/dashboard/notes?start=${toDateParam(start)}&end=${toDateParam(end)}`,
+        ),
+      ])
+      const noteEvents: EventInput[] = notes.map((note) => ({
+        id: `note-${note.id}`,
+        title: note.content,
+        start: note.date,
+        allDay: true,
+        color: '#f59e0b',
+        source: 'note',
+      }))
+      setCalendarEvents([...scheduleEvents, ...noteEvents])
     } catch (err) {
       setCalendarError(err instanceof ApiError ? err.message : '달력 정보를 불러오지 못했습니다.')
     }
+  }
+
+  function handleNoteModalClosed() {
+    setSelectedNoteDate(null)
+  }
+
+  function handleNoteChanged() {
+    if (visibleRange) loadCalendarEvents(visibleRange.start, visibleRange.end)
   }
 
   const moveDate = (days: number) => {
@@ -90,15 +124,20 @@ function DashboardPage() {
               <span className="h-2 w-2 rounded-full bg-[#8b5cf6]" />
               Google Calendar
             </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-warning-500" />
+              메모 (날짜 클릭으로 추가)
+            </span>
           </div>
           {calendarError && <p className="mb-3 text-body-small text-error-500">{calendarError}</p>}
           <FullCalendar
-            plugins={[dayGridPlugin]}
+            plugins={[dayGridPlugin, interactionPlugin]}
             initialView="dayGridMonth"
             locale="ko"
             height="auto"
             events={calendarEvents}
             datesSet={(info) => loadCalendarEvents(info.start, info.end)}
+            dateClick={(info) => setSelectedNoteDate(info.date)}
           />
         </Card>
 
@@ -172,6 +211,14 @@ function DashboardPage() {
           </div>
         </Card>
       </div>
+
+      {selectedNoteDate && (
+        <CalendarNoteModal
+          date={selectedNoteDate}
+          onClose={handleNoteModalClosed}
+          onChanged={handleNoteChanged}
+        />
+      )}
     </div>
   )
 }
