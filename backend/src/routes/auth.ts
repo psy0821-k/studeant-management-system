@@ -3,6 +3,7 @@ import { Router } from 'express'
 import { OAuth2Client } from 'google-auth-library'
 import { issueToken, requireAuth } from '../auth.js'
 import { pool } from '../db.js'
+import { buildGoogleAuthUrl, exchangeCodeAndSave, hasGoogleCalendarConnected } from '../google-calendar.js'
 
 const router = Router()
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID)
@@ -86,6 +87,33 @@ router.post('/google', async (req, res) => {
 
 router.get('/me', requireAuth, (req, res) => {
   res.json({ user: req.user })
+})
+
+router.get('/google-calendar/status', requireAuth, async (req, res) => {
+  const connected = await hasGoogleCalendarConnected(req.user!.id)
+  res.json({ connected })
+})
+
+router.get('/google-calendar/connect', requireAuth, (req, res) => {
+  const url = buildGoogleAuthUrl(req.user!.id)
+  res.json({ url })
+})
+
+router.get('/google-calendar/callback', async (req, res) => {
+  const { code, state } = req.query as { code?: string; state?: string }
+  const frontendOrigin = process.env.FRONTEND_ORIGIN ?? 'http://localhost:5173'
+
+  if (!code || !state) {
+    res.redirect(`${frontendOrigin}/classes?googleCalendar=error`)
+    return
+  }
+
+  try {
+    await exchangeCodeAndSave(state, code)
+    res.redirect(`${frontendOrigin}/classes?googleCalendar=connected`)
+  } catch {
+    res.redirect(`${frontendOrigin}/classes?googleCalendar=error`)
+  }
 })
 
 export default router
