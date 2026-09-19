@@ -261,3 +261,216 @@ describe('과제 관리 페이지', () => {
     expect(screen.getByText('삭제 실패 숙제')).toBeInTheDocument()
   })
 })
+
+describe('과제 관리 페이지: 제출 상태 배지 클릭', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  afterEach(() => {
+    cleanup()
+  })
+
+  it('상태: 미제출인 배지를 클릭하면 화면에 즉시 "진행중"으로 바뀌고 apiClient.put이 { status: 진행중 }으로 호출된다', async () => {
+    const user = userEvent.setup()
+    setupApiMock([
+      makeHomework({
+        id: 'homework-status-1',
+        title: '상태 변경 숙제',
+        classId: CLASS.id,
+        className: CLASS.name,
+        submissions: [{ id: 'sub-1', studentId: 'student-a', studentName: '김학생', status: '미제출' }],
+      }),
+    ])
+    mockedApiClient.put.mockResolvedValueOnce({
+      id: 'sub-1',
+      studentId: 'student-a',
+      studentName: '김학생',
+      status: '진행중',
+    })
+
+    renderPage()
+    await waitFor(() => expect(screen.getByText('상태 변경 숙제')).toBeInTheDocument())
+
+    const badge = screen.getByText('미제출')
+    await user.click(badge)
+
+    expect(await screen.findByText('진행중')).toBeInTheDocument()
+    expect(mockedApiClient.put).toHaveBeenCalledWith('/homework/submissions/sub-1', { status: '진행중' })
+  })
+
+  it('상태: 진행중인 배지를 클릭하면 "완료"로 바뀌고 apiClient.put이 { status: 완료 }로 호출된다', async () => {
+    const user = userEvent.setup()
+    setupApiMock([
+      makeHomework({
+        id: 'homework-status-2',
+        title: '상태 변경 숙제2',
+        classId: CLASS.id,
+        className: CLASS.name,
+        submissions: [{ id: 'sub-2', studentId: 'student-b', studentName: '이학생', status: '진행중' }],
+      }),
+    ])
+    mockedApiClient.put.mockResolvedValueOnce({
+      id: 'sub-2',
+      studentId: 'student-b',
+      studentName: '이학생',
+      status: '완료',
+    })
+
+    renderPage()
+    await waitFor(() => expect(screen.getByText('상태 변경 숙제2')).toBeInTheDocument())
+
+    const badge = screen.getByText('진행중')
+    await user.click(badge)
+
+    expect(await screen.findByText('완료')).toBeInTheDocument()
+    expect(mockedApiClient.put).toHaveBeenCalledWith('/homework/submissions/sub-2', { status: '완료' })
+  })
+
+  it('상태: 완료인 배지를 클릭하면 "미제출"로 바뀌고 apiClient.put이 { status: 미제출 }로 호출된다(순환 완성 확인)', async () => {
+    const user = userEvent.setup()
+    setupApiMock([
+      makeHomework({
+        id: 'homework-status-3',
+        title: '상태 변경 숙제3',
+        classId: CLASS.id,
+        className: CLASS.name,
+        submissions: [{ id: 'sub-3', studentId: 'student-c', studentName: '박학생', status: '완료' }],
+      }),
+    ])
+    mockedApiClient.put.mockResolvedValueOnce({
+      id: 'sub-3',
+      studentId: 'student-c',
+      studentName: '박학생',
+      status: '미제출',
+    })
+
+    renderPage()
+    await waitFor(() => expect(screen.getByText('상태 변경 숙제3')).toBeInTheDocument())
+
+    const badge = screen.getByText('완료')
+    await user.click(badge)
+
+    expect(await screen.findByText('미제출')).toBeInTheDocument()
+    expect(mockedApiClient.put).toHaveBeenCalledWith('/homework/submissions/sub-3', { status: '미제출' })
+  })
+
+  it('배지 클릭 시 Badge가 실제로 role="button"을 가지며 userEvent.click으로 클릭 가능함을 확인한다', async () => {
+    setupApiMock([
+      makeHomework({
+        id: 'homework-status-4',
+        title: '접근성 확인 숙제',
+        classId: CLASS.id,
+        className: CLASS.name,
+        submissions: [{ id: 'sub-4', studentId: 'student-d', studentName: '최학생', status: '미제출' }],
+      }),
+    ])
+    mockedApiClient.put.mockResolvedValueOnce({
+      id: 'sub-4',
+      studentId: 'student-d',
+      studentName: '최학생',
+      status: '진행중',
+    })
+
+    renderPage()
+    await waitFor(() => expect(screen.getByText('접근성 확인 숙제')).toBeInTheDocument())
+
+    const badge = screen.getByRole('button', { name: '미제출' })
+    expect(badge).toBeInTheDocument()
+  })
+
+  it('클릭 직후(응답이 오기 전) 화면에는 이미 다음 상태가 표시되어야 한다(낙관적 업데이트)', async () => {
+    const user = userEvent.setup()
+    setupApiMock([
+      makeHomework({
+        id: 'homework-status-5',
+        title: '낙관적 업데이트 숙제',
+        classId: CLASS.id,
+        className: CLASS.name,
+        submissions: [{ id: 'sub-5', studentId: 'student-e', studentName: '정학생', status: '미제출' }],
+      }),
+    ])
+    mockedApiClient.put.mockImplementation(
+      () =>
+        new Promise((resolve) =>
+          setTimeout(
+            () => resolve({ id: 'sub-5', studentId: 'student-e', studentName: '정학생', status: '진행중' }),
+            50,
+          ),
+        ),
+    )
+
+    renderPage()
+    await waitFor(() => expect(screen.getByText('낙관적 업데이트 숙제')).toBeInTheDocument())
+
+    const badge = screen.getByText('미제출')
+    await user.click(badge)
+
+    // apiClient.put 응답이 오기 전(50ms 지연)에도 이미 "진행중"으로 바뀌어 있어야 한다.
+    expect(screen.getByText('진행중')).toBeInTheDocument()
+  })
+
+  it('apiClient.put이 reject되면 배지가 클릭 이전 상태로 되돌아가고 에러 메시지가 화면에 표시된다', async () => {
+    const user = userEvent.setup()
+    setupApiMock([
+      makeHomework({
+        id: 'homework-status-6',
+        title: '롤백 확인 숙제',
+        classId: CLASS.id,
+        className: CLASS.name,
+        submissions: [{ id: 'sub-6', studentId: 'student-f', studentName: '한학생', status: '미제출' }],
+      }),
+    ])
+    mockedApiClient.put.mockRejectedValueOnce(new Error('네트워크 오류'))
+
+    renderPage()
+    await waitFor(() => expect(screen.getByText('롤백 확인 숙제')).toBeInTheDocument())
+
+    const badge = screen.getByText('미제출')
+    await user.click(badge)
+
+    await waitFor(() => expect(screen.getByText('미제출')).toBeInTheDocument())
+    expect(screen.queryByText('진행중')).not.toBeInTheDocument()
+    expect(await screen.findByText(/실패했습니다|오류/)).toBeInTheDocument()
+  })
+
+  it('실패 후에도 다른 과제/다른 학생의 배지 상태는 영향받지 않는다(롤백이 해당 submission에만 국한됨을 확인)', async () => {
+    const user = userEvent.setup()
+    setupApiMock([
+      makeHomework({
+        id: 'homework-status-7a',
+        title: '롤백 범위 확인 숙제1',
+        classId: CLASS.id,
+        className: CLASS.name,
+        submissions: [{ id: 'sub-7a', studentId: 'student-g', studentName: '오학생', status: '미제출' }],
+      }),
+      makeHomework({
+        id: 'homework-status-7b',
+        title: '롤백 범위 확인 숙제2',
+        classId: CLASS.id,
+        className: CLASS.name,
+        submissions: [{ id: 'sub-7b', studentId: 'student-h', studentName: '윤학생', status: '미제출' }],
+      }),
+    ])
+    mockedApiClient.put.mockImplementationOnce(
+      () => new Promise((_, reject) => setTimeout(() => reject(new Error('네트워크 오류')), 50)),
+    )
+
+    renderPage()
+    await waitFor(() => expect(screen.getByText('롤백 범위 확인 숙제1')).toBeInTheDocument())
+
+    const firstCard = screen.getByText('롤백 범위 확인 숙제1').closest('[data-testid="homework-item"]') as HTMLElement
+    const secondCard = screen.getByText('롤백 범위 확인 숙제2').closest('[data-testid="homework-item"]') as HTMLElement
+    const badge = within(firstCard).getByText('미제출')
+    await user.click(badge)
+
+    // 낙관적 업데이트로 첫 번째 카드는 즉시 "진행중"으로 바뀌었다가, 실패 후 "미제출"로 롤백되어야 한다.
+    expect(within(firstCard).getByText('진행중')).toBeInTheDocument()
+    await waitFor(() => expect(within(firstCard).getByText('미제출')).toBeInTheDocument())
+    expect(await screen.findByText(/실패했습니다|오류/)).toBeInTheDocument()
+
+    // 두 번째 카드는 처음부터 끝까지 "미제출" 상태를 유지해야 한다(다른 submission에 영향 없음).
+    expect(within(secondCard).getByText('미제출')).toBeInTheDocument()
+    expect(within(secondCard).queryByText('진행중')).not.toBeInTheDocument()
+  })
+})
