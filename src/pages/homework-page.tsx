@@ -6,7 +6,7 @@ import Card from '../components/ui/card'
 import Input from '../components/ui/input'
 import { apiClient, ApiError } from '../lib/api-client'
 import { homeworkInputSchema } from '../types/grade'
-import type { HomeworkInput, HomeworkRecord, HomeworkStatus } from '../types/grade'
+import type { HomeworkInput, HomeworkRecord, HomeworkStatus, HomeworkSubmission } from '../types/grade'
 import type { SchoolClass } from '../types/class'
 import type { Student } from '../types/student'
 
@@ -23,6 +23,13 @@ const HOMEWORK_BADGE_TONE: Record<HomeworkStatus, 'success' | 'info' | 'error'> 
   미제출: 'error',
 }
 
+// 배지 클릭 시 순환할 다음 상태 매핑 (미제출 → 진행중 → 완료 → 미제출)
+const NEXT_HOMEWORK_STATUS: Record<HomeworkStatus, HomeworkStatus> = {
+  미제출: '진행중',
+  진행중: '완료',
+  완료: '미제출',
+}
+
 function HomeworkPage() {
   const [classes, setClasses] = useState<SchoolClass[]>([])
   const [students, setStudents] = useState<Student[]>([])
@@ -33,6 +40,7 @@ function HomeworkPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [statusUpdateError, setStatusUpdateError] = useState<string | null>(null)
   const [submitSuccessMessage, setSubmitSuccessMessage] = useState<string | null>(null)
 
   async function loadHomework() {
@@ -111,6 +119,43 @@ function HomeworkPage() {
       setHomeworkList((prev) => prev.filter((homework) => homework.id !== id))
     } catch (err) {
       setDeleteError(err instanceof ApiError ? err.message : '과제 삭제에 실패했습니다.')
+    }
+  }
+
+  // homeworkId의 과제에서 submissionId에 해당하는 제출 항목의 상태만 nextStatus로 교체한 새 목록을 반환한다
+  function applySubmissionStatus(
+    list: HomeworkRecord[],
+    homeworkId: string,
+    submissionId: string,
+    nextStatus: HomeworkStatus,
+  ): HomeworkRecord[] {
+    return list.map((homework) =>
+      homework.id === homeworkId
+        ? {
+            ...homework,
+            submissions: homework.submissions.map((item) =>
+              item.id === submissionId ? { ...item, status: nextStatus } : item,
+            ),
+          }
+        : homework,
+    )
+  }
+
+  // 제출 현황 배지 클릭 시 다음 상태로 순환하고, 실패하면 이전 상태로 되돌린다
+  async function handleSubmissionStatusClick(
+    homeworkId: string,
+    submission: HomeworkSubmission,
+  ): Promise<void> {
+    const previousStatus = submission.status
+    const nextStatus = NEXT_HOMEWORK_STATUS[previousStatus]
+    setStatusUpdateError(null)
+    setHomeworkList((prev) => applySubmissionStatus(prev, homeworkId, submission.id, nextStatus))
+    try {
+      await apiClient.put(`/homework/submissions/${submission.id}`, { status: nextStatus })
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : '상태 변경에 실패했습니다.'
+      setHomeworkList((prev) => applySubmissionStatus(prev, homeworkId, submission.id, previousStatus))
+      setStatusUpdateError(message)
     }
   }
 
@@ -208,6 +253,9 @@ function HomeworkPage() {
       {isLoading && <p className="mt-6 text-body-small text-gray-400">불러오는 중...</p>}
       {error && <p className="mt-6 text-body-small text-error-500">{error}</p>}
       {deleteError && <p className="mt-6 text-body-small text-error-500">{deleteError}</p>}
+      {statusUpdateError && (
+        <p className="mt-6 text-body-small text-error-500">{statusUpdateError}</p>
+      )}
 
       <div className="mt-6 space-y-4">
         {homeworkList.map((homework) => (
@@ -231,7 +279,21 @@ function HomeworkPage() {
                   className="flex items-center justify-between text-body-small text-gray-700"
                 >
                   <span>{submission.studentName}</span>
-                  <Badge tone={HOMEWORK_BADGE_TONE[submission.status]}>{submission.status}</Badge>
+                  <Badge
+                    role="button"
+                    tabIndex={0}
+                    tone={HOMEWORK_BADGE_TONE[submission.status]}
+                    className="cursor-pointer select-none"
+                    onClick={() => handleSubmissionStatusClick(homework.id, submission)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        handleSubmissionStatusClick(homework.id, submission)
+                      }
+                    }}
+                  >
+                    {submission.status}
+                  </Badge>
                 </li>
               ))}
               {homework.submissions.length === 0 && (
