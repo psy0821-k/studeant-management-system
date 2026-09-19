@@ -33,6 +33,7 @@ function HomeworkPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [submitSuccessMessage, setSubmitSuccessMessage] = useState<string | null>(null)
 
   async function loadHomework() {
     const data = await apiClient.get<HomeworkRecord[]>('/homework')
@@ -69,6 +70,7 @@ function HomeworkPage() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setFormError(null)
+    setSubmitSuccessMessage(null)
     const result = homeworkInputSchema.safeParse(form)
     if (!result.success) {
       setFormError(result.error.issues[0].message)
@@ -82,6 +84,12 @@ function HomeworkPage() {
           : { studentId: result.data.studentId, title: result.data.title }
       const created = await apiClient.post<HomeworkRecord>('/homework', payload)
       setHomeworkList((prev) => [...prev, created])
+      // 반 전체 등록 시 제출 기록이 몇 명에게 생성됐는지 안내한다
+      if (created.className) {
+        setSubmitSuccessMessage(
+          `${created.className} ${created.submissions.length}명에게 과제가 등록되었습니다.`,
+        )
+      }
       setForm(EMPTY_FORM)
     } catch (err) {
       setFormError(err instanceof ApiError ? err.message : '과제 저장에 실패했습니다.')
@@ -91,7 +99,12 @@ function HomeworkPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('이 과제를 삭제하시겠습니까?')) return
+    if (
+      !confirm(
+        '이 과제와 연결된 모든 학생의 제출 기록도 함께 삭제됩니다. 삭제하시겠습니까?',
+      )
+    )
+      return
     setDeleteError(null)
     try {
       await apiClient.delete(`/homework/${id}`)
@@ -107,6 +120,9 @@ function HomeworkPage() {
       <p className="mt-1 text-body-small text-gray-500">
         반 전체 또는 개별 학생에게 과제를 등록하고 제출 현황을 확인합니다.
       </p>
+      <p className="mt-1 text-body-small text-gray-400">
+        성적 관리는 학생 상세 페이지 또는 모의고사 관리 메뉴에서 확인할 수 있습니다.
+      </p>
 
       <Card className="mt-6 p-5">
         <h3 className="text-card-title text-gray-900">과제 등록</h3>
@@ -121,16 +137,15 @@ function HomeworkPage() {
               />
               반 전체
             </label>
-            <span className="flex items-center gap-1.5 text-body-small text-gray-700">
+            <label className="flex items-center gap-1.5 text-body-small text-gray-700">
               <input
                 type="radio"
                 name="targetType"
-                aria-label="개별 학생 등록"
                 checked={form.targetType === 'student'}
                 onChange={() => changeTargetType('student')}
               />
-              개별 학생
-            </span>
+              개별 학생 등록
+            </label>
           </div>
 
           {form.targetType === 'class' ? (
@@ -180,6 +195,9 @@ function HomeworkPage() {
           />
 
           {formError && <p className="text-body-small text-error-500">{formError}</p>}
+          {submitSuccessMessage && (
+            <p className="text-body-small text-success-500">{submitSuccessMessage}</p>
+          )}
 
           <Button type="submit" disabled={isSubmitting}>
             {isSubmitting ? '저장 중...' : '저장'}
@@ -206,7 +224,7 @@ function HomeworkPage() {
               </Button>
             </div>
 
-            <ul className="mt-4 space-y-1.5">
+            <ul className="mt-4 max-h-64 space-y-1.5 overflow-y-auto">
               {homework.submissions.map((submission) => (
                 <li
                   key={submission.id}
