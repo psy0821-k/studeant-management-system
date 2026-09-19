@@ -111,8 +111,6 @@ function StudentsPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="secondary">엑셀 가져오기</Button>
-          <Button variant="secondary">엑셀 내보내기</Button>
           <Button variant="primary" onClick={openCreateForm}>
             학생 등록
           </Button>

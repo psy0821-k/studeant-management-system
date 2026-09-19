@@ -23,9 +23,7 @@ import {
   TableRow,
 } from '../components/ui/table'
 import { apiClient, ApiError } from '../lib/api-client'
-import { MOCK_GRADE_HISTORY } from '../mocks/student-grade-history'
 import { MOCK_ATTENDANCE } from '../mocks/attendance'
-import { MOCK_HOMEWORK } from '../mocks/grades'
 import { MOCK_PAYMENTS } from '../mocks/payments'
 import { MOCK_COUNSELING } from '../mocks/counseling'
 import { MOCK_TEXTBOOKS } from '../mocks/textbooks'
@@ -33,7 +31,7 @@ import { studentInputSchema } from '../types/student'
 import type { Student, StudentInput, StudentStatus } from '../types/student'
 import type { SchoolClass } from '../types/class'
 import type { AttendanceStatus } from '../types/attendance'
-import type { HomeworkStatus } from '../types/grade'
+import type { GradeRecord } from '../types/grade'
 import type { PaymentStatus } from '../types/payment'
 
 const STATUS_BADGE_TONE: Record<StudentStatus, 'success' | 'warning' | 'gray'> = {
@@ -47,12 +45,6 @@ const ATTENDANCE_BADGE_TONE: Record<AttendanceStatus, 'success' | 'warning' | 'e
   지각: 'warning',
   조퇴: 'warning',
   결석: 'error',
-}
-
-const HOMEWORK_BADGE_TONE: Record<HomeworkStatus, 'success' | 'info' | 'error'> = {
-  완료: 'success',
-  진행중: 'info',
-  미제출: 'error',
 }
 
 const PAYMENT_BADGE_TONE: Record<PaymentStatus, 'success' | 'error' | 'warning'> = {
@@ -73,6 +65,18 @@ function StudentDetailPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
 
+  const [schoolGrades, setSchoolGrades] = useState<GradeRecord[]>([])
+  const [gradeFormState, setGradeFormState] = useState({
+    examName: '',
+    score: '',
+    gradeLevel: '',
+    rank: '',
+    rankInGrade: '',
+    examDate: '',
+  })
+  const [gradeFormError, setGradeFormError] = useState<string | null>(null)
+  const [isSubmittingGrade, setIsSubmittingGrade] = useState(false)
+
   useEffect(() => {
     if (!id) return
     apiClient
@@ -87,6 +91,57 @@ function StudentDetailPage() {
   useEffect(() => {
     apiClient.get<SchoolClass[]>('/classes').then(setClasses).catch(() => {})
   }, [])
+
+  useEffect(() => {
+    if (!id) return
+    apiClient
+      .get<GradeRecord[]>(`/grades?studentId=${id}&examType=학교시험`)
+      .then(setSchoolGrades)
+      .catch(() => {})
+  }, [id])
+
+  function handleGradeFormChange(field: keyof typeof gradeFormState, value: string): void {
+    setGradeFormState((prev) => ({ ...prev, [field]: value }))
+  }
+
+  async function handleAddGrade(e: FormEvent<HTMLFormElement>): Promise<void> {
+    e.preventDefault()
+    const score = Number(gradeFormState.score)
+    if (gradeFormState.examName.trim() === '' || gradeFormState.examDate === '') {
+      setGradeFormError('시험명과 시험일은 필수입니다.')
+      return
+    }
+    if (Number.isNaN(score) || score < 0 || score > 100) {
+      setGradeFormError('점수는 0~100 사이로 입력해주세요.')
+      return
+    }
+    setGradeFormError(null)
+    setIsSubmittingGrade(true)
+    try {
+      const created = await apiClient.post<GradeRecord>('/grades', {
+        studentId: student?.id,
+        examName: gradeFormState.examName,
+        examType: '학교시험',
+        score,
+        gradeLevel: gradeFormState.gradeLevel ? Number(gradeFormState.gradeLevel) : null,
+        rank: gradeFormState.rank ? Number(gradeFormState.rank) : null,
+        rankInGrade: gradeFormState.rankInGrade ? Number(gradeFormState.rankInGrade) : null,
+        examDate: gradeFormState.examDate,
+      })
+      setSchoolGrades((prev) => [...prev, created])
+      setGradeFormState({ examName: '', score: '', gradeLevel: '', rank: '', rankInGrade: '', examDate: '' })
+    } catch {
+      setGradeFormError('성적 저장에 실패했습니다. 다시 시도해주세요.')
+    } finally {
+      setIsSubmittingGrade(false)
+    }
+  }
+
+  async function handleDeleteGrade(gradeId: string): Promise<void> {
+    if (!confirm('이 성적을 삭제하시겠습니까?')) return
+    await apiClient.delete<void>(`/grades/${gradeId}`)
+    setSchoolGrades((prev) => prev.filter((g) => g.id !== gradeId))
+  }
 
   function startEdit() {
     if (!student) return
@@ -150,9 +205,8 @@ function StudentDetailPage() {
     )
   }
 
-  const gradeHistory = MOCK_GRADE_HISTORY[student.id] ?? []
+  const gradeHistory = schoolGrades.map((g) => ({ examName: g.examName, score: g.score }))
   const attendance = MOCK_ATTENDANCE.filter((record) => record.studentName === student.name)
-  const homework = MOCK_HOMEWORK.filter((record) => record.studentName === student.name)
   const payments = MOCK_PAYMENTS.filter((record) => record.studentName === student.name)
   const counseling = MOCK_COUNSELING.filter((record) => record.studentName === student.name)
   const textbooks = MOCK_TEXTBOOKS.filter((record) => record.studentName === student.name)
@@ -309,9 +363,54 @@ function StudentDetailPage() {
         </Card>
 
         <Card className="p-5 lg:col-span-2">
-          <h3 className="text-card-title text-gray-900">성적 추이</h3>
+          <h3 className="text-card-title text-gray-900">학교 성적</h3>
+
+          <form className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3" onSubmit={handleAddGrade}>
+            <Input
+              className="col-span-2 sm:col-span-1"
+              placeholder="시험명 (예: 2학기 중간고사)"
+              value={gradeFormState.examName}
+              onChange={(e) => handleGradeFormChange('examName', e.target.value)}
+            />
+            <Input
+              placeholder="점수"
+              inputMode="numeric"
+              value={gradeFormState.score}
+              onChange={(e) => handleGradeFormChange('score', e.target.value)}
+            />
+            <Input
+              placeholder="등급"
+              inputMode="numeric"
+              value={gradeFormState.gradeLevel}
+              onChange={(e) => handleGradeFormChange('gradeLevel', e.target.value)}
+            />
+            <Input
+              placeholder="반석차"
+              inputMode="numeric"
+              value={gradeFormState.rank}
+              onChange={(e) => handleGradeFormChange('rank', e.target.value)}
+            />
+            <Input
+              placeholder="전교석차"
+              inputMode="numeric"
+              value={gradeFormState.rankInGrade}
+              onChange={(e) => handleGradeFormChange('rankInGrade', e.target.value)}
+            />
+            <Input
+              type="date"
+              value={gradeFormState.examDate}
+              onChange={(e) => handleGradeFormChange('examDate', e.target.value)}
+            />
+            <Button type="submit" size="sm" disabled={isSubmittingGrade} className="col-span-2 sm:col-span-1">
+              {isSubmittingGrade ? '저장 중...' : '저장'}
+            </Button>
+            {gradeFormError && (
+              <p className="col-span-2 text-body-small text-error-500 sm:col-span-3">{gradeFormError}</p>
+            )}
+          </form>
+
           <div className="mt-4 h-64">
-            {gradeHistory.length > 0 ? (
+            {gradeHistory.length > 1 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={gradeHistory}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -331,6 +430,49 @@ function StudentDetailPage() {
               <p className="text-body-small text-gray-400">성적 데이터가 없습니다.</p>
             )}
           </div>
+
+          <Table className="mt-4">
+            <TableHead>
+              <TableRow>
+                <TableHeaderCell>시험명</TableHeaderCell>
+                <TableHeaderCell>점수</TableHeaderCell>
+                <TableHeaderCell>등급</TableHeaderCell>
+                <TableHeaderCell>반석차</TableHeaderCell>
+                <TableHeaderCell>전교석차</TableHeaderCell>
+                <TableHeaderCell>시험일</TableHeaderCell>
+                <TableHeaderCell />
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {schoolGrades.map((grade) => (
+                <TableRow key={grade.id}>
+                  <TableCell>{grade.examName}</TableCell>
+                  <TableCell>{grade.score}</TableCell>
+                  <TableCell className="text-caption text-gray-500">{grade.gradeLevel ?? '-'}</TableCell>
+                  <TableCell className="text-caption text-gray-500">{grade.rank ?? '-'}</TableCell>
+                  <TableCell className="text-caption text-gray-500">{grade.rankInGrade ?? '-'}</TableCell>
+                  <TableCell className="text-caption text-gray-500">{grade.examDate}</TableCell>
+                  <TableCell>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteGrade(grade.id)}
+                    >
+                      삭제
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {schoolGrades.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={7} className="py-6 text-center text-body-small text-gray-400">
+                    등록된 학교 성적이 없습니다.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
         </Card>
       </div>
 
@@ -359,37 +501,6 @@ function StudentDetailPage() {
                 <TableRow>
                   <TableCell colSpan={3} className="py-6 text-center text-body-small text-gray-400">
                     출결 기록이 없습니다.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </Card>
-
-        <Card className="p-5">
-          <h3 className="text-card-title text-gray-900">과제 현황</h3>
-          <Table className="mt-3">
-            <TableHead>
-              <TableRow>
-                <TableHeaderCell>과제명</TableHeaderCell>
-                <TableHeaderCell>마감일</TableHeaderCell>
-                <TableHeaderCell>상태</TableHeaderCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {homework.map((record) => (
-                <TableRow key={record.id}>
-                  <TableCell>{record.title}</TableCell>
-                  <TableCell className="text-caption text-gray-500">{record.dueDate}</TableCell>
-                  <TableCell>
-                    <Badge tone={HOMEWORK_BADGE_TONE[record.status]}>{record.status}</Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {homework.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={3} className="py-6 text-center text-body-small text-gray-400">
-                    과제 기록이 없습니다.
                   </TableCell>
                 </TableRow>
               )}
