@@ -275,3 +275,124 @@ describe('과제 관리: 인증 가드', () => {
     expect(res.status).toBe(401)
   })
 })
+
+describe('과제 제출 상태 변경: PUT /api/homework/submissions/:id', () => {
+  let teacher: Awaited<ReturnType<typeof createTestTeacher>>
+  const createdHomeworkIds: string[] = []
+  const createdStudentIds: string[] = []
+
+  beforeEach(async () => {
+    teacher = await createTestTeacher('homework-submission-status')
+  })
+
+  afterEach(async () => {
+    for (const id of createdHomeworkIds.splice(0)) await deleteHomework(id)
+    for (const id of createdStudentIds.splice(0)) await deleteStudent(id)
+    await deleteTestUser(teacher.id)
+  })
+
+  async function createHomeworkWithSubmission(): Promise<{ homeworkId: string; submissionId: string }> {
+    const student = await createTestStudent('homework-submission-status', teacher.id)
+    createdStudentIds.push(student.id)
+
+    const created = await request(app)
+      .post('/api/homework')
+      .set('Authorization', `Bearer ${teacher.token}`)
+      .send({ studentId: student.id, title: '상태 변경용 숙제' })
+    createdHomeworkIds.push(created.body.id)
+
+    return { homeworkId: created.body.id, submissionId: created.body.submissions[0].id }
+  }
+
+  it('진행중 상태인 submission에 { status: 완료 }를 PUT하면 200과 함께 status: 완료가 반환된다', async () => {
+    const { submissionId } = await createHomeworkWithSubmission()
+
+    await request(app)
+      .put(`/api/homework/submissions/${submissionId}`)
+      .set('Authorization', `Bearer ${teacher.token}`)
+      .send({ status: '진행중' })
+
+    const res = await request(app)
+      .put(`/api/homework/submissions/${submissionId}`)
+      .set('Authorization', `Bearer ${teacher.token}`)
+      .send({ status: '완료' })
+
+    expect(res.status).toBe(200)
+    expect(res.body.status).toBe('완료')
+  })
+
+  it('상태 변경 후 GET /api/homework로 다시 조회하면 해당 submission의 status가 갱신되어 있다', async () => {
+    const { homeworkId, submissionId } = await createHomeworkWithSubmission()
+
+    await request(app)
+      .put(`/api/homework/submissions/${submissionId}`)
+      .set('Authorization', `Bearer ${teacher.token}`)
+      .send({ status: '완료' })
+
+    const listRes = await request(app).get('/api/homework').set('Authorization', `Bearer ${teacher.token}`)
+    const homework = listRes.body.find((h: { id: string }) => h.id === homeworkId)
+    const submission = homework.submissions.find((s: { id: string }) => s.id === submissionId)
+    expect(submission.status).toBe('완료')
+  })
+
+  it('응답 바디에 studentName이 포함된다', async () => {
+    const { submissionId } = await createHomeworkWithSubmission()
+
+    const res = await request(app)
+      .put(`/api/homework/submissions/${submissionId}`)
+      .set('Authorization', `Bearer ${teacher.token}`)
+      .send({ status: '진행중' })
+
+    expect(res.body.studentName).toBeTruthy()
+  })
+
+  it('순환 규칙을 어기는 값(미제출 → 완료 직행)도 서버는 막지 않고 200으로 그대로 저장한다', async () => {
+    const { submissionId } = await createHomeworkWithSubmission()
+
+    const res = await request(app)
+      .put(`/api/homework/submissions/${submissionId}`)
+      .set('Authorization', `Bearer ${teacher.token}`)
+      .send({ status: '완료' })
+
+    expect(res.status).toBe(200)
+    expect(res.body.status).toBe('완료')
+  })
+
+  it('{ status: 보류 }처럼 허용되지 않은 문자열을 보내면 400과 에러 메시지를 반환한다', async () => {
+    const { submissionId } = await createHomeworkWithSubmission()
+
+    const res = await request(app)
+      .put(`/api/homework/submissions/${submissionId}`)
+      .set('Authorization', `Bearer ${teacher.token}`)
+      .send({ status: '보류' })
+
+    expect(res.status).toBe(400)
+    expect(res.body.error).toBeTruthy()
+  })
+
+  it('status 필드를 생략하고 PUT하면 400을 반환한다', async () => {
+    const { submissionId } = await createHomeworkWithSubmission()
+
+    const res = await request(app)
+      .put(`/api/homework/submissions/${submissionId}`)
+      .set('Authorization', `Bearer ${teacher.token}`)
+      .send({})
+
+    expect(res.status).toBe(400)
+  })
+
+  it('존재하지 않는 submission id로 PUT하면 404와 에러 메시지를 반환한다', async () => {
+    const res = await request(app)
+      .put(`/api/homework/submissions/${missingId}`)
+      .set('Authorization', `Bearer ${teacher.token}`)
+      .send({ status: '완료' })
+
+    expect(res.status).toBe(404)
+    expect(res.body.error).toBeTruthy()
+  })
+
+  it('토큰 없이 PUT /api/homework/submissions/:id → 401', async () => {
+    const res = await request(app).put(`/api/homework/submissions/${missingId}`).send({ status: '완료' })
+    expect(res.status).toBe(401)
+  })
+})

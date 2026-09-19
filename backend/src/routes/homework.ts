@@ -186,6 +186,49 @@ router.post('/', async (req, res) => {
   res.status(201).json(toHomework(result.rows[0], submissionMap.get(homeworkId) ?? []))
 })
 
+const HOMEWORK_STATUSES = ['완료', '진행중', '미제출'] as const
+type HomeworkSubmissionStatus = (typeof HOMEWORK_STATUSES)[number]
+
+interface UpdateSubmissionStatusPayload {
+  status?: string
+}
+
+function isValidStatus(status: unknown): status is HomeworkSubmissionStatus {
+  return typeof status === 'string' && HOMEWORK_STATUSES.includes(status as HomeworkSubmissionStatus)
+}
+
+// PUT /api/homework/submissions/:id
+// body: { status: '완료' | '진행중' | '미제출' }
+// - 클라이언트가 이미 계산한 다음 상태를 그대로 저장한다(순환 규칙은 프론트 책임).
+// - status가 허용된 값이 아니면 400.
+// - :id에 해당하는 submission이 없으면 404.
+// - 응답: 갱신된 HomeworkSubmission 단건(camelCase) — { id, studentId, studentName, status }.
+router.put('/submissions/:id', async (req, res) => {
+  const body = req.body as UpdateSubmissionStatusPayload
+
+  if (!isValidStatus(body.status)) {
+    res.status(400).json({ error: '상태는 완료, 진행중, 미제출 중 하나여야 합니다.' })
+    return
+  }
+
+  const updated = await pool.query<SubmissionRow>(
+    `UPDATE homework_submissions hs
+     SET status = $1
+     FROM students s
+     WHERE hs.id = $2 AND s.id = hs.student_id
+     RETURNING hs.id, hs.homework_id, hs.student_id, s.name AS student_name, hs.status`,
+    [body.status, req.params.id],
+  )
+
+  if (updated.rows.length === 0) {
+    res.status(404).json({ error: '제출 현황을 찾을 수 없습니다.' })
+    return
+  }
+
+  const row = updated.rows[0]
+  res.json({ id: row.id, studentId: row.student_id, studentName: row.student_name, status: row.status })
+})
+
 // DELETE /api/homework/:id
 router.delete('/:id', async (req, res) => {
   const client = await pool.connect()
