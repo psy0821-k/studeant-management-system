@@ -102,6 +102,40 @@ describe('학교 성적: 정상', () => {
     expect(examDates).toEqual(sorted)
   })
 
+  it('GET /api/grades?studentId=&examType=모의고사 는 같은 학생의 학교시험 항목을 제외하고 모의고사 항목만 반환한다', async () => {
+    const schoolExam = await request(app)
+      .post('/api/grades')
+      .set('Authorization', `Bearer ${teacher.token}`)
+      .send({
+        studentId: student.id,
+        examName: '2학기 중간고사',
+        examType: '학교시험',
+        score: 80,
+        examDate: '2026-09-01',
+      })
+    const mockExam = await request(app)
+      .post('/api/grades')
+      .set('Authorization', `Bearer ${teacher.token}`)
+      .send({
+        studentId: student.id,
+        examName: '9월 모의고사',
+        examType: '모의고사',
+        score: 92,
+        examDate: '2026-09-03',
+      })
+    createdGradeIds.push(schoolExam.body.id, mockExam.body.id)
+
+    const listRes = await request(app)
+      .get(`/api/grades?studentId=${student.id}&examType=모의고사`)
+      .set('Authorization', `Bearer ${teacher.token}`)
+
+    expect(listRes.status).toBe(200)
+    const ids = listRes.body.map((g: { id: string }) => g.id)
+    expect(ids).toContain(mockExam.body.id)
+    expect(ids).not.toContain(schoolExam.body.id)
+    expect(listRes.body.every((g: { examType: string }) => g.examType === '모의고사')).toBe(true)
+  })
+
   it('DELETE /api/grades/:id 는 204를 반환하고 이후 목록에서 제거된다', async () => {
     const created = await request(app)
       .post('/api/grades')

@@ -13,6 +13,7 @@ const MENU_ITEMS: MenuItem[] = [
   { path: '/classes', label: '반 관리' },
   { path: '/attendance', label: '출결 관리' },
   { path: '/grades', label: '성적/과제 관리' },
+  { path: '/mock-exams', label: '모의고사 관리' },
   { path: '/payments', label: '수강료 관리' },
   { path: '/counseling', label: '상담 관리' },
   { path: '/ai-analysis', label: 'AI 분석' },
