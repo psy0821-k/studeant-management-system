@@ -5,6 +5,7 @@ import authRouter from './routes/auth.js'
 import classesRouter from './routes/classes.js'
 import dashboardRouter from './routes/dashboard.js'
 import gradesRouter from './routes/grades.js'
+import homeworkRouter from './routes/homework.js'
 import studentsRouter from './routes/students.js'
 
 export function createApp() {
@@ -24,6 +25,7 @@ export function createApp() {
   app.use('/api/classes', classesRouter)
   app.use('/api/dashboard', dashboardRouter)
   app.use('/api/grades', gradesRouter)
+  app.use('/api/homework', homeworkRouter)
   app.use('/api/students', studentsRouter)
 
   return app

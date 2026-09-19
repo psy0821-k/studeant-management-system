@@ -24,7 +24,6 @@ import {
 } from '../components/ui/table'
 import { apiClient, ApiError } from '../lib/api-client'
 import { MOCK_ATTENDANCE } from '../mocks/attendance'
-import { MOCK_HOMEWORK } from '../mocks/grades'
 import { MOCK_PAYMENTS } from '../mocks/payments'
 import { MOCK_COUNSELING } from '../mocks/counseling'
 import { MOCK_TEXTBOOKS } from '../mocks/textbooks'
@@ -32,7 +31,7 @@ import { studentInputSchema } from '../types/student'
 import type { Student, StudentInput, StudentStatus } from '../types/student'
 import type { SchoolClass } from '../types/class'
 import type { AttendanceStatus } from '../types/attendance'
-import type { GradeRecord, HomeworkStatus } from '../types/grade'
+import type { GradeRecord } from '../types/grade'
 import type { PaymentStatus } from '../types/payment'
 
 const STATUS_BADGE_TONE: Record<StudentStatus, 'success' | 'warning' | 'gray'> = {
@@ -46,12 +45,6 @@ const ATTENDANCE_BADGE_TONE: Record<AttendanceStatus, 'success' | 'warning' | 'e
   지각: 'warning',
   조퇴: 'warning',
   결석: 'error',
-}
-
-const HOMEWORK_BADGE_TONE: Record<HomeworkStatus, 'success' | 'info' | 'error'> = {
-  완료: 'success',
-  진행중: 'info',
-  미제출: 'error',
 }
 
 const PAYMENT_BADGE_TONE: Record<PaymentStatus, 'success' | 'error' | 'warning'> = {
@@ -214,7 +207,6 @@ function StudentDetailPage() {
 
   const gradeHistory = schoolGrades.map((g) => ({ examName: g.examName, score: g.score }))
   const attendance = MOCK_ATTENDANCE.filter((record) => record.studentName === student.name)
-  const homework = MOCK_HOMEWORK.filter((record) => record.studentName === student.name)
   const payments = MOCK_PAYMENTS.filter((record) => record.studentName === student.name)
   const counseling = MOCK_COUNSELING.filter((record) => record.studentName === student.name)
   const textbooks = MOCK_TEXTBOOKS.filter((record) => record.studentName === student.name)
@@ -509,37 +501,6 @@ function StudentDetailPage() {
                 <TableRow>
                   <TableCell colSpan={3} className="py-6 text-center text-body-small text-gray-400">
                     출결 기록이 없습니다.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </Card>
-
-        <Card className="p-5">
-          <h3 className="text-card-title text-gray-900">과제 현황</h3>
-          <Table className="mt-3">
-            <TableHead>
-              <TableRow>
-                <TableHeaderCell>과제명</TableHeaderCell>
-                <TableHeaderCell>마감일</TableHeaderCell>
-                <TableHeaderCell>상태</TableHeaderCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {homework.map((record) => (
-                <TableRow key={record.id}>
-                  <TableCell>{record.title}</TableCell>
-                  <TableCell className="text-caption text-gray-500">{record.dueDate}</TableCell>
-                  <TableCell>
-                    <Badge tone={HOMEWORK_BADGE_TONE[record.status]}>{record.status}</Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {homework.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={3} className="py-6 text-center text-body-small text-gray-400">
-                    과제 기록이 없습니다.
                   </TableCell>
                 </TableRow>
               )}
