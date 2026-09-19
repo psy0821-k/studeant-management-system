@@ -4,6 +4,7 @@ import { pool } from './db.js'
 import authRouter from './routes/auth.js'
 import classesRouter from './routes/classes.js'
 import dashboardRouter from './routes/dashboard.js'
+import gradesRouter from './routes/grades.js'
 import studentsRouter from './routes/students.js'
 
 export function createApp() {
@@ -22,6 +23,7 @@ export function createApp() {
   app.use('/api/auth', authRouter)
   app.use('/api/classes', classesRouter)
   app.use('/api/dashboard', dashboardRouter)
+  app.use('/api/grades', gradesRouter)
   app.use('/api/students', studentsRouter)
 
   return app

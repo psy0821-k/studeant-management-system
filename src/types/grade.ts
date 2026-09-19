@@ -1,9 +1,15 @@
+export type ExamType = '학교시험' | '모의고사'
+
 export interface GradeRecord {
   id: string
-  studentName: string
+  studentId: string
   subject: string
   examName: string
+  examType: ExamType
   score: number
+  gradeLevel: number | null
+  rank: number | null
+  rankInGrade: number | null
   examDate: string
 }
 
