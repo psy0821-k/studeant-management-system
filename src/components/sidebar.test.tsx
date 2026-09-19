@@ -41,4 +41,17 @@ describe('Sidebar', () => {
     expect(homeworkLink).toBeInTheDocument()
     expect(homeworkLink).toHaveAttribute('href', '/homework')
   })
+
+  it('모의고사 관리 메뉴 항목이 표시된다', () => {
+    renderSidebar()
+
+    expect(screen.getByText('모의고사 관리')).toBeInTheDocument()
+  })
+
+  it('모의고사 관리 메뉴의 링크가 /mock-exams를 가리킨다', () => {
+    renderSidebar()
+
+    const link = screen.getByRole('link', { name: '모의고사 관리' })
+    expect(link).toHaveAttribute('href', '/mock-exams')
+  })
 })
