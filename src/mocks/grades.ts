@@ -1,6 +1,16 @@
-import type { GradeRecord, HomeworkRecord } from '../types/grade'
+import type { HomeworkRecord } from '../types/grade'
 
-export const MOCK_GRADES: GradeRecord[] = [
+// 성적/과제 관리 페이지(전체 학생 목록)용 목업 타입 — 학생 상세 페이지의 GradeRecord(학생별 학교 성적)와는 별개.
+interface MockGradeSummary {
+  id: string
+  studentName: string
+  subject: string
+  examName: string
+  score: number
+  examDate: string
+}
+
+export const MOCK_GRADES: MockGradeSummary[] = [
   { id: '1', studentName: '김민준', subject: '수학', examName: '9월 모의고사', score: 92, examDate: '2026-09-05' },
   { id: '2', studentName: '이서연', subject: '영어', examName: '9월 모의고사', score: 78, examDate: '2026-09-05' },
   { id: '3', studentName: '박도윤', subject: '수학', examName: '9월 모의고사', score: 65, examDate: '2026-09-05' },
