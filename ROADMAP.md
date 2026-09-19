@@ -9,7 +9,7 @@
 - [x] 1~3일차: 로그인 (Google OAuth + 테스트용 아이디/비밀번호) — Phase 0 연장. `google_credentials` 연동(테스트 계정에 Google 계정 추가 연결)은 Calendar 연동 작업(8~10일차) 때 함께 구현 예정
 - [x] 4~7일차: 학생 CRUD (Phase 1)
 - [x] 8~10일차: 반 관리 + FullCalendar UI + Google Calendar 단방향 동기화 (Phase 3)
-- [ ] 11~13일차: 성적/숙제 관리 (Phase 5 일부)
+- [x] 11~13일차: 성적/숙제 관리 (Phase 5)
 - [ ] 14일차: 통합 점검, 버그 수정, 데모 리허설
 
 ## Phase 0. 기반 구축
@@ -43,9 +43,12 @@
 
 ## Phase 5. 성적/과제 관리
 
-- [ ] 학교 성적(내신 등)은 별도 메뉴가 아니라 학생 상세 페이지(`student-detail-page.tsx`)에서 입력/조회
-- [ ] 모의고사 관리 메뉴 신설 (학원 자체 시험 성적 입력/조회, 학생별·과목별)
-- [ ] 과제 등록 및 제출/완료 현황 체크 — 기존 '성적/과제 관리' 메뉴는 '과제 관리'로 개편
+- [x] 학교 성적(내신 등)은 별도 메뉴가 아니라 학생 상세 페이지(`student-detail-page.tsx`)에서 입력/조회 — 점수·등급(1~9)·반석차·전교석차 입력, 2건 이상 시 추이 그래프, 삭제(확인 다이얼로그) (#9)
+- [x] 모의고사 관리 메뉴 신설 (`/mock-exams`) — 학생별 모의고사 성적 입력/조회/삭제, 추이 그래프. `grades` 테이블에 `exam_type`(학교시험/모의고사) 컬럼을 추가해 학교 성적과 같은 API·테이블을 재사용 (#10)
+- [x] 과제 등록 및 제출/완료 현황 체크 — 기존 '성적/과제 관리' 메뉴를 '과제 관리'(`/homework`)로 개편, 반 전체 또는 개별 학생 단위 등록 지원(`homework.class_id` nullable화 + `student_id` 추가, XOR 제약) (#11)
+- [x] 과제 제출 상태 배지 클릭으로 미제출→진행중→완료 순환 변경, 낙관적 업데이트 + 실패 시 롤백 (#12)
+- 관련 문서: `docs/features/grade-homework-management/`(spec-fixed/prd/issues/issue-9~12), 작업 방식 기록 `docs/scratch/grade-homework-workflow-guide.md`
+- 향후 개선 여지로 남긴 항목(치명적이지 않아 이번 범위에서는 보류): 모의고사 반 전체 일괄 입력 UI(현재는 학생 1명씩 등록), 과제 제출 상태 배지의 클릭 중복 방지(디바운스), 배지 호버 시각 효과
 
 ## Phase 6. 수강료 관리
 
@@ -76,7 +79,8 @@
   - `.env` 커밋 이력 없음, 프론트에 노출되는 환경변수(`VITE_API_BASE_URL`, `VITE_GOOGLE_CLIENT_ID`)는 원래 공개되어야 하는 값이라 문제 없음
   - `backend/seed-test-user.mjs`에 테스트 계정(`admin`/`test1234`) 하드코딩 — 로컬 개발용 스크립트, 실수로 프로덕션 DB에 실행되지 않도록 배포 전 실행 금지 가드 추가 검토 필요 (미해결)
 - [ ] `seed-test-user.mjs`에 프로덕션 환경 실행 방지 가드 추가
-- [ ] 반/학생 CRUD 등 나머지 기능에 대한 회귀 테스트 확장 (현재는 반 일정+캘린더 연동 범위만 커버)
+- [x] 프론트 단위 테스트 도입 (Vitest + React Testing Library) — Phase 5 작업 중 신설. `student-detail-page`, `mock-exams-page`, `homework-page`, `sidebar` 커버
+- [ ] 학생 CRUD, 모의고사/과제 API 외 나머지 기능(반 관리 CRUD 등)에 대한 백엔드 회귀 테스트 확장 (현재는 반 일정+캘린더 연동, 성적/과제 API 범위만 커버)
 
 ## Phase 10. 배포
 
